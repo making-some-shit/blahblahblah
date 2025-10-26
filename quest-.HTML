@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Quest Log</title>
+<style>
+body {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(circle at center, #000, #050505, #000);
+    color: #d0d0d0;
+    font-family: 'Courier New', monospace;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    text-align: center;
+    position: relative;
+}
+
+.quest-box {
+    background: rgba(15, 15, 15, 0.95);
+    border: 1px solid #333;
+    box-shadow: 0 0 20px #111, inset 0 0 10px #222;
+    border-radius: 12px;
+    width: 500px;
+    max-width: 90%;
+    padding: 40px;
+    text-align: center;
+    z-index: 1;
+    position: relative;
+}
+
+h1 { font-size: 2.5em; margin-bottom: 10px; }
+.side-title { color: #00bfff; text-shadow: 0 0 15px #00bfff,0 0 25px #0077ff; }
+.main-title { color: #ff0000; text-shadow: 0 0 20px #ff0000,0 0 35px #550000; }
+
+h2 { color: #bbbbbb; font-weight: normal; margin-top: 0; }
+p { color: #999; margin: 10px 0; }
+
+.button {
+    margin-top: 25px;
+    padding: 12px 40px;
+    font-size: 1em;
+    background: transparent;
+    color: #e0e0e0;
+    border: 2px solid #00bfff;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.button:hover { background: #00bfff; color: #000; box-shadow: 0 0 15px #00bfff; }
+.no-btn { opacity: 0.3; cursor: default; border-color: #555; }
+
+.difficulty { margin-top: 20px; }
+.bar { width: 220px; height: 8px; background: #222; border-radius: 4px; overflow: hidden; margin: 8px auto; box-shadow: 0 0 10px #111; position: relative; }
+.bar-fill { position: absolute; left:0; top:0; height:100%; width:0%; }
+.bar.medium .bar-fill { background: linear-gradient(90deg,#ff9f00,#ff7700); box-shadow:0 0 10px #ff7700; }
+.bar.unknown .bar-fill { background: linear-gradient(90deg,#ff0000,#440000,#ff0000); box-shadow:0 0 15px #ff0000; }
+
+.reward-box {
+    display:inline-block;
+    padding:25px 40px;
+    background: #003300;
+    border: 2px solid #00ff00;
+    color: #00ff00;
+    font-size:1.8em;
+    border-radius:12px;
+    box-shadow:0 0 15px #00ff00, inset 0 0 10px #00aa00;
+    text-shadow:0 0 10px #00ff00;
+    min-width: 250px;
+    animation: glow 1.5s infinite alternate;
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes glow {
+    from { box-shadow: 0 0 10px #00ff00, inset 0 0 5px #00aa00; }
+    to { box-shadow: 0 0 20px #00ff00, inset 0 0 15px #00ff00; }
+}
+
+.shake { animation: shake 0.05s infinite; }
+@keyframes shake {0%{transform:translate(0,0);}20%{transform:translate(-5px,3px);}40%{transform:translate(5px,-3px);}60%{transform:translate(-3px,5px);}80%{transform:translate(3px,-5px);}100%{transform:translate(0,0);}}
+
+.no-overlay {
+    position: absolute;
+    top:0; left:0;
+    width:100%; height:100%;
+    pointer-events:none;
+    z-index: 1000;
+}
+.no-text {
+    position:absolute;
+    color: rgba(255,0,0,0.2);
+    font-size: 3em;
+    font-family: monospace;
+    user-select: none;
+    white-space: nowrap;
+    text-shadow: 0 0 10px red;
+}
+</style>
+</head>
+<body>
+
+<div id="container"></div>
+<div class="no-overlay" id="noOverlay"></div>
+
+<script>
+// Typing helper
+function typeSequence(items, speeds, callback){
+    let index = 0;
+    function next(){
+        if(index >= items.length){ if(callback) callback(); return; }
+        typeText(items[index].element, items[index].text, speeds[index], ()=>{index++; next();});
+    }
+    next();
+}
+
+function typeText(element, text, speed, callback){
+    element.innerHTML = '';
+    let i=0;
+    function typing(){
+        if(i<text.length){ element.innerHTML+=text.charAt(i); i++; setTimeout(typing, speed);}
+        else if(callback) callback();
+    }
+    typing();
+}
+
+// Fill bar
+function fillBar(barFill, duration, widthPercent, callback){
+    let width=0;
+    const interval=setInterval(()=>{
+        width++;
+        barFill.style.width = width*widthPercent/100 + '%';
+        if(width>=100){ clearInterval(interval); if(callback) callback(); }
+    }, duration/100);
+}
+
+// Side Quest
+function startSideQuest(){
+    const container=document.getElementById('container');
+    container.innerHTML=`
+        <div class="quest-box">
+            <h1 class="side-title" id="title"></h1>
+            <h2 id="subtitle"></h2>
+            <p id="duration"></p>
+            <div class="difficulty">
+                <p id="diff"></p>
+                <div class="bar medium"><div class="bar-fill" id="barFill"></div></div>
+            </div>
+            <button class="button" id="claimBtn" style="display:none;">CLAIM REWARDS</button>
+        </div>
+    `;
+    const items=[
+        {element:document.getElementById('title'), text:'SIDE QUEST COMPLETED'},
+        {element:document.getElementById('subtitle'), text:'"School"'},
+        {element:document.getElementById('duration'), text:'Duration: 12 Years'},
+        {element:document.getElementById('diff'), text:'Difficulty: Medium'}
+    ];
+    typeSequence(items,[50,50,50,70], ()=>{
+        fillBar(document.getElementById('barFill'),2000,60, ()=>{
+            document.getElementById('claimBtn').style.display='inline-block';
+        });
+    });
+    document.getElementById('claimBtn').onclick=claimReward;
+}
+
+// Reward
+function claimReward(){
+    const container=document.getElementById('container');
+    container.innerHTML=`<div class="reward-box" id="rewardBox"></div>`;
+    typeText(document.getElementById('rewardBox'),'Freedom has been obtained',50,()=>{
+        setTimeout(showMainQuest,1500);
+    });
+}
+
+// Main Quest
+function showMainQuest(){
+    const container=document.getElementById('container');
+    const overlay=document.getElementById('noOverlay');
+    container.innerHTML=`
+        <div class="quest-box">
+            <h1 class="main-title" id="title"></h1>
+            <h2 id="subtitle"></h2>
+            <div class="difficulty">
+                <p id="diff"></p>
+                <div class="bar unknown"><div class="bar-fill" id="barFill"></div></div>
+            </div>
+            <p id="question"></p>
+            <div>
+                <button class="button" id="yesBtn" style="display:none;">YES</button>
+                <button class="button" id="noBtn" style="display:none;">NO</button>
+            </div>
+        </div>
+    `;
+
+    const items=[
+        {element:document.getElementById('title'), text:'MAIN QUEST UNLOCKED'},
+        {element:document.getElementById('subtitle'), text:'"Life"'},
+        {element:document.getElementById('diff'), text:'Difficulty: ???'}
+    ];
+
+    typeSequence(items,[50,50,100], ()=>{
+        fillBar(document.getElementById('barFill'),3000,100, ()=>{
+            typeText(document.getElementById('question'),'Do you accept your destiny?',70, ()=>{
+                const yesBtn=document.getElementById('yesBtn');
+                const noBtn=document.getElementById('noBtn');
+                yesBtn.style.display='inline-block';
+                noBtn.style.display='inline-block';
+
+                yesBtn.onclick=acceptQuest;
+
+                noBtn.onclick=()=>{
+                    for(let i=0;i<15;i++){
+                        const t=document.createElement('div');
+                        t.className='no-text';
+                        t.innerText='NO ▲ ☠ ✖ ◆ ❌';
+                        t.style.top=Math.random()*window.innerHeight+'px';
+                        t.style.left=Math.random()*window.innerWidth+'px';
+                        t.style.transform='rotate('+Math.random()*360+'deg)';
+                        overlay.appendChild(t);
+                        setTimeout(()=>{t.remove();},500);
+                    }
+                };
+            });
+        });
+    });
+}
+
+// Accept Main Quest
+function acceptQuest(){
+    const container=document.getElementById('container');
+    document.body.classList.add('shake');
+    let messages=[
+        'YOU DARE ACCEPT???',
+        'THE WORLD BURNS!',
+        'CHAOS IS UNLEASHED!',
+        'NO TURNING BACK!',
+        'EMBRACE THE MADNESS!'
+    ];
+    container.innerHTML=`<h1 class="main-title" id="wildText"></h1>`;
+    let index=0;
+    let wildText=document.getElementById('wildText');
+    let interval=setInterval(()=>{
+        wildText.innerText=messages[index%messages.length];
+        wildText.style.color=index%2==0?'#ff0000':'#ff8800';
+        index++;
+    },300);
+
+    setTimeout(()=>{
+        clearInterval(interval);
+        document.body.classList.remove('shake');
+        container.innerHTML=`
+            <h1 class="main-title">THE QUEST HAS ONLY BEGUN</h1>
+            <h2>The journey into chaos awaits...</h2>
+        `;
+    },6000);
+}
+
+startSideQuest();
+</script>
+
+</body>
+</html>
